@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # daylook
 
-Personal outfit-planner PWA ("Tenues"). The app is still at the create-next-app scaffold stage — the real product lives in the spec, not the code.
+Personal outfit-planner PWA ("Tenues"). The code is a bare, cleaned Next.js shell — the real product lives in the spec (`README.md`), not the code.
 
 ## Product spec is the source of truth
 
