@@ -7,3 +7,29 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# daylook
+
+Personal outfit-planner PWA ("Tenues"). The app is still at the create-next-app scaffold stage — the real product lives in the spec, not the code.
+
+## Product spec is the source of truth
+
+`README.md` sections 1–10 (in French) contain the full spec: functional rules (pieces, associations, planning, wear/wash counters, notifications), the intended Prisma data model, proposed API routes, and roadmap. Read it before implementing anything beyond the scaffold. Prisma/PostgreSQL are **not installed yet** — they are planned, not set up. User-facing UI text is French.
+
+## Commands (pnpm only — `packageManager: pnpm@12.4.2`)
+
+- `pnpm dev` — dev server (Turbopack). Also regenerates the `nextjs-agent-rules` block above; don't fight it.
+- `pnpm build` — production build; typechecks as part of the build.
+- `pnpm lint` — ESLint (flat config, `eslint-config-next`).
+- Typecheck without building: `pnpm exec tsc --noEmit` (no dedicated script).
+- No test runner, test files, or CI exist yet. Don't invent `pnpm test`.
+
+`pnpm-workspace.yaml` is **not** a monorepo — it only gates install scripts (`allowBuilds: sharp: false, unrs-resolver: false`). Keep it that way.
+
+## Framework quirks that affect every change
+
+- **Next.js 16.4.6 / React 19.3** — see the local docs block above; trust `node_modules/next/dist/docs/` over training data.
+- **Tailwind CSS 4** via the `@tailwindcss/turbopack` loader declared in `next.config.ts` — there is no `postcss.config`. Use v4 syntax (`@import "tailwindcss"`, `@theme`), not v3 directives.
+- **`cacheComponents: true`** (plus `partialPrefetching`) is on in `next.config.ts` — it changes data-fetching/caching rules. Check `01-app/02-guides/` (caching, instant-navigation) before adding `fetch`/`revalidate` usage.
+- Path alias: `@/*` → repo root (e.g. `@/app/...`).
+- `.env*` is gitignored; no `.env` file is committed.
