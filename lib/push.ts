@@ -1,5 +1,5 @@
 import "server-only";
-import webpush from "web-push";
+import { sendNotification, setVapidDetails } from "web-push";
 import prisma from "@/lib/prisma";
 
 // Envoi de notifications Web Push (§5). Clés VAPID dans .env
@@ -21,7 +21,7 @@ function ensureVapid(): boolean {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) return false; // pas de clés → push inactif
-  webpush.setVapidDetails(
+  setVapidDetails(
     process.env.VAPID_SUBJECT ?? "mailto:contact@example.com",
     publicKey,
     privateKey,
@@ -49,7 +49,7 @@ export async function sendPushToUser(
   let delivered = 0;
   for (const subscription of subscriptions) {
     try {
-      await webpush.sendNotification(
+      await sendNotification(
         {
           endpoint: subscription.endpoint,
           keys: { p256dh: subscription.p256dh, auth: subscription.auth },
