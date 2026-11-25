@@ -1,5 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PushManager } from "@/components/push/push-manager";
+import { PendingPromptAlert } from "@/components/push/pending-prompt-alert";
 
 // Structure commune des 3 onglets : contenu + barre de navigation fixe.
 // Pas de vérification de session ici — un layout ne se re-rend pas à chaque
@@ -19,6 +21,8 @@ export default function TabsLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col pb-24">
       <div className="mx-auto flex w-full max-w-none flex-1 flex-col px-4 sm:px-6 lg:max-w-5xl xl:max-w-7xl">
+        <PushManager />
+        <PendingPromptAlert />
         {children}
       </div>
       <Suspense fallback={<BottomNavSkeleton />}>

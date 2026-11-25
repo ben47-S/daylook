@@ -80,6 +80,9 @@ model PlannedOutfit {
   status        PlanStatus @default(PLANNED)
   cancelReason  String?
   snoozedUntil  DateTime?
+  // Heures locales (20..23) auxquelles la notification du soir a déjà été
+  // envoyée pour cette tenue — évite de renvoyer à chaque appel.
+  notifiedHours Int[]      @default([])
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 

@@ -20,6 +20,17 @@ export function dateKeyInZone(date: Date, timeZone: string): string {
   }).format(date);
 }
 
+/** Heure locale (0..23) d'instant dans le fuseau donné. */
+export function hourInZone(date: Date, timeZone: string): number {
+  return Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(date),
+  );
+}
+
 /** Vrai si la clé est un jour calendaire réel (ex. "2026-02-31" → faux). */
 export function isValidDateKey(key: string): boolean {
   if (!DATE_KEY_RE.test(key)) return false;
