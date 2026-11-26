@@ -2,7 +2,13 @@
 
 # ── Base ──────────────────────────────────────────────
 FROM node:22-slim AS base
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl \
+ && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@12.4.2
+# Détourage : pas de GPU dans l'image — skip du binaire CUDA
+# (le .npmrc seul ne suffit pas, pnpm ne l'exporte pas aux scripts).
+ENV npm_config_onnxruntime_node_install_cuda=skip
 WORKDIR /app
 
 # ── Dependencies ──────────────────────────────────────
