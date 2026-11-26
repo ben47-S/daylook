@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Standalone : sortie Docker légère (server.js + node_modules tracés).
+  output: "standalone",
   experimental: {
     agentFeedback: true,
   },

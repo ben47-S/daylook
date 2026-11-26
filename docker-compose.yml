@@ -1,0 +1,36 @@
+services:
+  tenues:
+    build:
+      context: .
+      args:
+        DATABASE_URL: ${DATABASE_URL}
+        AUTH_SECRET: ${AUTH_SECRET}
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+    container_name: tenues
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:contact@example.com}
+      - NODE_ENV=production
+      - TZ=Europe/Paris
+    volumes:
+      # Photos des pièces : survit aux rebuilds (§6).
+      - tenues-storage:/app/storage
+    networks:
+      - traefik-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-network"
+      - "traefik.http.routers.tenues.rule=Host(`${DOMAIN:?Renseignez DOMAIN dans .env}`)"
+      - "traefik.http.routers.tenues.entrypoints=web"
+      - "traefik.http.services.tenues.loadbalancer.server.port=3000"
+
+volumes:
+  tenues-storage:
+
+networks:
+  traefik-network:
+    external: true
