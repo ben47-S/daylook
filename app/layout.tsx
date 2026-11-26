@@ -8,6 +8,16 @@ export const metadata: Metadata = {
   },
   description:
     "Gestion des tenues de travail : pièces, associations, planning et suivi des ports.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 };
 
 // viewportFit: cover — requis pour que env(safe-area-inset-bottom) (barre du
