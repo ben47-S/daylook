@@ -76,7 +76,7 @@ function PieceRow({
           className="shrink-0 cursor-zoom-in overflow-hidden rounded-lg bg-zinc-200 transition hover:opacity-85 focus:outline-none focus:ring-2 focus:ring-zinc-400"
         >
           <Image
-            src={`/api/photos/${piece.id}`}
+            src={`/api/photos/${piece.id}?cutout=1`}
             alt={piece.title}
             unoptimized
             width={96}
@@ -152,7 +152,7 @@ function PhotoModal({
         className="flex max-h-full w-full max-w-2xl flex-col items-center gap-3"
       >
         <Image
-          src={`/api/photos/${piece.id}`}
+          src={`/api/photos/${piece.id}?cutout=1`}
           alt={piece.title}
           unoptimized
           width={1024}

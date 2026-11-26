@@ -1,6 +1,7 @@
 allowBuilds:
   '@prisma/engines': true
   esbuild: true
+  onnxruntime-node: true
   prisma: true
-  sharp: false
+  sharp: true
   unrs-resolver: false

@@ -3,10 +3,15 @@ import { join } from "node:path";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth/session";
+import { cutoutImage } from "@/lib/photos/cutout";
 
 // POST /api/pieces/:id/photo — upload (ou remplacement) de la photo d'une pièce.
 // Fichier écrit dans storage/photos/<id>.<ext> ; photoPath en base stocke le
 // chemin relatif. Un ancien fichier d'extension différent est supprimé.
+// Étape 6 : le retrait du fond est généré à la volée (lib locale, cf.
+// lib/photos/cutout.ts) → storage/photos/<id>.cutout.png dans cutoutPath.
+// Best effort : si le détourage échoue, la photo reste utilisable telle
+// quelle (le champ cutoutPath repasse à null).
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
 
@@ -72,20 +77,36 @@ export async function POST(request: Request, { params }: Params) {
 
   const relativePath = join("storage", "photos", `${piece.id}.${extension}`);
   await mkdir(join(process.cwd(), "storage", "photos"), { recursive: true });
-  await writeFile(
-    join(process.cwd(), relativePath),
-    Buffer.from(await file.arrayBuffer()),
-  );
+  const bytes = Buffer.from(await file.arrayBuffer());
+  await writeFile(join(process.cwd(), relativePath), bytes);
 
   // Ancien fichier supprimé si l'extension a changé (jpg → png par ex.)
   if (piece.photoPath && piece.photoPath !== relativePath) {
     await unlink(join(process.cwd(), piece.photoPath)).catch(() => {});
   }
 
+  // Retrait du fond (étape 6) : PNG transparent à côté de la photo.
+  // Le fichier cutout est toujours régénéré — un échec efface l'ancien
+  // détourage pour ne jamais servir un découpage de l'ancienne photo.
+  const cutoutRelative = join("storage", "photos", `${piece.id}.cutout.png`);
+  const cutoutBytes = await cutoutImage(bytes, file.type);
+  if (cutoutBytes) {
+    await writeFile(join(process.cwd(), cutoutRelative), cutoutBytes);
+  } else {
+    await unlink(join(process.cwd(), cutoutRelative)).catch(() => {});
+  }
+
   await prisma.piece.update({
     where: { id: piece.id },
-    data: { photoPath: relativePath },
+    data: {
+      photoPath: relativePath,
+      cutoutPath: cutoutBytes ? cutoutRelative : null,
+    },
   });
 
-  return NextResponse.json({ ok: true, photoPath: relativePath });
+  return NextResponse.json({
+    ok: true,
+    photoPath: relativePath,
+    cutoutPath: cutoutBytes ? cutoutRelative : null,
+  });
 }

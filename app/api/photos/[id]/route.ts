@@ -7,6 +7,10 @@ import { getSessionUserId } from "@/lib/auth/session";
 // GET /api/photos/:id — sert la photo d'une pièce (authentification exigée :
 // les photos sont des données personnelles, le fichier n'est jamais exposé
 // via public/). :id = identifiant de la pièce.
+//   défaut        → photo d'origine
+//   ?cutout=1     → version détourée (§6) si elle existe, sinon repli sur
+//                   l'origine : la vue assemblée peut donc toujours
+//                   afficher quelque chose, avec ou sans fond retiré.
 
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -16,7 +20,7 @@ const MIME_TYPES: Record<string, string> = {
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export async function GET(request: Request, { params }: Params) {
   const userId = await getSessionUserId();
   if (!userId) {
     return NextResponse.json(
@@ -28,16 +32,21 @@ export async function GET(_request: Request, { params }: Params) {
   const { id } = await params;
   const piece = await prisma.piece.findFirst({
     where: { id, userId },
-    select: { photoPath: true },
+    select: { photoPath: true, cutoutPath: true },
   });
   if (!piece?.photoPath) {
     return NextResponse.json({ message: "Photo introuvable." }, { status: 404 });
   }
 
+  const wantsCutout =
+    new URL(request.url).searchParams.get("cutout") === "1" &&
+    piece.cutoutPath !== null;
+  const relativePath = wantsCutout ? piece.cutoutPath! : piece.photoPath;
+
   try {
-    const data = await readFile(join(process.cwd(), piece.photoPath));
+    const data = await readFile(join(process.cwd(), relativePath));
     const contentType =
-      MIME_TYPES[extname(piece.photoPath).toLowerCase()] ?? "image/jpeg";
+      MIME_TYPES[extname(relativePath).toLowerCase()] ?? "image/jpeg";
 
     return new Response(new Uint8Array(data), {
       headers: {
