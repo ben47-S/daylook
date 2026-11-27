@@ -18,6 +18,7 @@ export type PieceWarning = { level: "orange" | "red"; text: string };
 type WarnablePiece = {
   id: string;
   title: string;
+  color: string;
   washThreshold: number | null;
   wearsSinceWash: number;
 };
@@ -27,6 +28,11 @@ export type PlannedPiecesByDay = Record<string, string[]>;
 
 function isPlannedOn(planned: PlannedPiecesByDay, key: string, pieceId: string) {
   return planned[key]?.includes(pieceId) ?? false;
+}
+
+/** Libellé des alertes : le titre de la pièce, suivi de sa couleur. */
+function pieceLabel(piece: { title: string; color: string }): string {
+  return piece.color ? `${piece.title} · ${piece.color}` : piece.title;
 }
 
 /**
@@ -44,7 +50,7 @@ export function weeklyWarnings(
     return [
       {
         level: "red",
-        text: `${piece.title} : ${count} fois cette semaine`,
+        text: `${pieceLabel(piece)} : ${count} fois cette semaine`,
       },
     ];
   }
@@ -52,7 +58,7 @@ export function weeklyWarnings(
     return [
       {
         level: "orange",
-        text: `${piece.title} : 2 fois cette semaine`,
+        text: `${pieceLabel(piece)} : 2 fois cette semaine`,
       },
     ];
   }
@@ -73,12 +79,15 @@ export function washWarnings(
   const total = piece.wearsSinceWash + otherPlannedCount + 1;
   if (total > piece.washThreshold) {
     return [
-      { level: "red", text: `${piece.title} : seuil de lavage dépassé` },
+      { level: "red", text: `${pieceLabel(piece)} : seuil de lavage dépassé` },
     ];
   }
   if (total === piece.washThreshold) {
     return [
-      { level: "orange", text: `${piece.title} : dernier port avant lavage` },
+      {
+        level: "orange",
+        text: `${pieceLabel(piece)} : dernier port avant lavage`,
+      },
     ];
   }
   return [];

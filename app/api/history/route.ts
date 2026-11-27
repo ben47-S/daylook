@@ -22,8 +22,8 @@ export async function GET() {
     select: {
       id: true,
       date: true,
-      top: { select: { id: true, title: true } },
-      bottom: { select: { id: true, title: true } },
+      top: { select: { id: true, title: true, color: true } },
+      bottom: { select: { id: true, title: true, color: true } },
     },
   });
 

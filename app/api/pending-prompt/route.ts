@@ -43,7 +43,7 @@ export async function GET() {
       date: true,
       notifiedHours: true,
       snoozedUntil: true,
-      association: { select: { top: { select: { title: true } } } },
+      association: { select: { top: { select: { title: true, color: true } } } },
     },
     orderBy: { date: "asc" },
   });
@@ -73,6 +73,7 @@ export async function GET() {
       dayQuestion:
         dateKey === todayKey ? "la tenue d'aujourd'hui" : "la tenue de demain",
       topTitle: plan.association.top.title,
+      topColor: plan.association.top.color,
       snoozedUntil: plan.snoozedUntil,
     });
   }

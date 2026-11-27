@@ -11,8 +11,8 @@ import { createPortal } from "react-dom";
 type HistoryEntry = {
   id: string;
   dateKey: string;
-  top: { id: string; title: string };
-  bottom: { id: string; title: string };
+  top: { id: string; title: string; color: string };
+  bottom: { id: string; title: string; color: string };
 };
 
 export function HistorySheet() {
@@ -162,7 +162,7 @@ function HistoryPanel({
                   {formatDay(entry.dateKey)}
                 </p>
                 <p className="truncate text-sm">
-                  {entry.top.title} + {entry.bottom.title}
+                  {pieceLabel(entry.top)} + {pieceLabel(entry.bottom)}
                 </p>
               </li>
             ))}
@@ -171,6 +171,11 @@ function HistoryPanel({
       </div>
     </div>
   );
+}
+
+/** Libellé d'une pièce dans l'historique : titre + couleur. */
+function pieceLabel(piece: { title: string; color: string }): string {
+  return piece.color ? `${piece.title} · ${piece.color}` : piece.title;
 }
 
 /** Clé "YYYY-MM-DD" → « lun. 25 nov. » en fr-FR (calé sur UTC). */

@@ -17,6 +17,7 @@ type PromptState =
       dateKey: string;
       dayQuestion: string;
       topTitle: string;
+      topColor: string;
       snoozedUntil?: string | null;
     };
 
@@ -58,8 +59,9 @@ export function PendingPromptAlert() {
       className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
     >
       <p className="min-w-0 flex-1 text-sm font-medium text-amber-800">
-        As-tu repassé {prompt.dayQuestion} ({prompt.topTitle}) et comptes-tu la
-        porter ?
+        As-tu repassé {prompt.dayQuestion} ({prompt.topTitle}
+        {prompt.topColor ? ` · ${prompt.topColor}` : ""}) et comptes-tu la porter
+        ?
       </p>
       <div className="flex gap-2">
         <button

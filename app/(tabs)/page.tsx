@@ -87,6 +87,7 @@ async function Accueil() {
       select: {
         id: true,
         title: true,
+        color: true,
         wearsSinceWash: true,
         washThreshold: true,
       },
@@ -210,6 +211,7 @@ async function Accueil() {
 type WashPiece = {
   id: string;
   title: string;
+  color: string;
   wearsSinceWash: number;
   washThreshold: number | null;
 };
@@ -228,16 +230,21 @@ function washAlerts(pieces: WashPiece[]): Array<{
     if (piece.wearsSinceWash >= piece.washThreshold) {
       alerts.push({
         level: "red",
-        text: `${piece.title} : laver (${piece.wearsSinceWash} ports sur ${piece.washThreshold})`,
+        text: `${pieceLabel(piece)} : laver (${piece.wearsSinceWash} ports sur ${piece.washThreshold})`,
       });
     } else if (piece.wearsSinceWash === piece.washThreshold - 1) {
       alerts.push({
         level: "orange",
-        text: `${piece.title} : dernier port avant lavage`,
+        text: `${pieceLabel(piece)} : dernier port avant lavage`,
       });
     }
   }
   // Les plus urgents d'abord.
   alerts.sort((a, b) => (a.level === b.level ? 0 : a.level === "red" ? -1 : 1));
   return alerts;
+}
+
+/** Libellé des alertes : le titre de la pièce, suivi de sa couleur. */
+function pieceLabel(piece: { title: string; color: string }): string {
+  return piece.color ? `${piece.title} · ${piece.color}` : piece.title;
 }
