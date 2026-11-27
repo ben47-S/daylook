@@ -16,7 +16,7 @@ import { CompatibleList } from "./compatible-list";
 
 type Props = {
   /** Pièce de la carte ou de la fiche. */
-  piece: { id: string; type: "TOP" | "BOTTOM"; title: string };
+  piece: { id: string; type: "TOP" | "BOTTOM"; title: string; color: string };
   /** « icon » sur une carte, « block » sur la fiche (défaut : icon). */
   variant?: "icon" | "block";
   /** Nombre de combinaisons existantes, affiché sur le bouton « block ». */
@@ -195,7 +195,7 @@ function AssociationsPanel({
   onToggle,
   onClose,
 }: {
-  piece: { id: string; type: "TOP" | "BOTTOM"; title: string };
+  piece: { id: string; type: "TOP" | "BOTTOM"; title: string; color: string };
   options: Piece[] | null;
   linkedIds: string[] | null;
   loading: boolean;
@@ -221,7 +221,12 @@ function AssociationsPanel({
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-base font-semibold">Pièces compatibles</h2>
-            <p className="truncate text-sm text-zinc-500">{piece.title}</p>
+            <p className="truncate text-sm text-zinc-500">
+              {piece.title}
+              {piece.color && (
+                <span className="text-zinc-400"> · {piece.color}</span>
+              )}
+            </p>
           </div>
           <button
             type="button"
