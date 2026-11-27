@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import prisma from "@/lib/prisma";
 import { signSession, verifySession } from "./jwt";
 
 // Gestion du cookie de session (httpOnly) via l'API cookies de Next.js.
@@ -31,9 +32,20 @@ export async function deleteSession(): Promise<void> {
  * Vérification « sécurisée » : relit et vérifie le JWT directement depuis
  * le cookie. À utiliser dans les route handlers et server actions, proche
  * de la donnée, sans faire confiance à un en-tête injecté.
+ *
+ * Session fantôme (JWT valide mais compte supprimé de la base) : renvoie
+ * null, comme si la session n'existait pas — l'API répond 401 au lieu de
+ * planter sur une clé étrangère.
  */
 export async function getSessionUserId(): Promise<string | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
-  return verifySession(token);
+  const userId = await verifySession(token);
+  if (!userId) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  return user ? userId : null;
 }

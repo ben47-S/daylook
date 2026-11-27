@@ -3,6 +3,12 @@ import prisma from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
 import {
+  clearFailures,
+  clientIp,
+  isBlocked,
+  recordFailure,
+} from "@/lib/auth/rate-limit";
+import {
   normalizeEmail,
   registerSchema,
   type AuthFormState,
@@ -10,8 +16,17 @@ import {
 
 // POST /api/auth/register — inscription email + mot de passe.
 // Crée l'utilisateur, signe le JWT et pose le cookie httpOnly.
+// Limitation de débit par IP (spam d'inscriptions / énumération).
 
 export async function POST(request: Request): Promise<Response> {
+  const rateKey = `register:${clientIp(request)}`;
+  if (isBlocked(rateKey)) {
+    return NextResponse.json(
+      { message: "Trop de tentatives. Réessayez plus tard." },
+      { status: 429 },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -37,6 +52,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
+    recordFailure(rateKey);
     const state: AuthFormState = {
       message: "Un compte existe déjà avec cette adresse email.",
     };
@@ -48,6 +64,7 @@ export async function POST(request: Request): Promise<Response> {
     select: { id: true },
   });
 
+  clearFailures(rateKey);
   await createSession(user.id);
   return NextResponse.json({ ok: true }, { status: 201 });
 }

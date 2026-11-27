@@ -1,6 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import prisma from "@/lib/prisma";
 import { getSessionUserId } from "./session";
 
 // Data Access Layer : l'endroit unique où l'app résout « qui est connecté ».
@@ -26,9 +27,21 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   return userId ? { id: userId } : null;
 }
 
-/** Comme getCurrentUser(), mais redirige vers /connexion si absent. */
+/**
+ * Comme getCurrentUser(), mais redirige vers /connexion si absent — et
+ * invalide la session si l'utilisateur n'existe plus en base (JWT encore
+ * valide après suppression du compte : sans cette vérification, le proxy
+ * renverrait en boucle entre / et /connexion).
+ */
 export async function requireUser(): Promise<SessionUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/connexion");
+
+  const exists = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { id: true },
+  });
+  if (!exists) redirect("/api/auth/invalidate");
+
   return user;
 }
