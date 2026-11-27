@@ -1,8 +1,8 @@
-import { readFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { extname } from "node:path";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth/session";
+import { photoUrl, readLocalPhoto } from "@/lib/photos/storage";
 
 // GET /api/photos/:id — sert la photo d'une pièce (authentification exigée :
 // les photos sont des données personnelles, le fichier n'est jamais exposé
@@ -11,6 +11,8 @@ import { getSessionUserId } from "@/lib/auth/session";
 //   ?cutout=1     → version détourée (§6) si elle existe, sinon repli sur
 //                   l'origine : la vue assemblée peut donc toujours
 //                   afficher quelque chose, avec ou sans fond retiré.
+// R2 configuré → redirection (302) vers l'URL signée du bucket (valable
+// 24 h) ; sinon lecture du fichier sur le disque local.
 
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -41,21 +43,35 @@ export async function GET(request: Request, { params }: Params) {
   const wantsCutout =
     new URL(request.url).searchParams.get("cutout") === "1" &&
     piece.cutoutPath !== null;
-  const relativePath = wantsCutout ? piece.cutoutPath! : piece.photoPath;
+  const key = wantsCutout ? piece.cutoutPath! : piece.photoPath;
 
-  try {
-    const data = await readFile(join(process.cwd(), relativePath));
-    const contentType =
-      MIME_TYPES[extname(relativePath).toLowerCase()] ?? "image/jpeg";
-
-    return new Response(new Uint8Array(data), {
+  // R2 : on laisse le bucket servir les octets (URL signée, même
+  // contenu que l'authentification ci-dessus a déjà autorisé).
+  const signedUrl = await photoUrl(key);
+  if (signedUrl) {
+    return new Response(null, {
+      status: 302,
       headers: {
-        "Content-Type": contentType,
-        // Privé : jamais mis en cache partagé entre utilisateurs.
-        "Cache-Control": "private, max-age=3600",
+        Location: signedUrl,
+        // Moins que la durée de vie de l'URL signée (24 h) : le
+        // navigateur re-demande avant l'expiration.
+        "Cache-Control": "private, max-age=1800",
       },
     });
-  } catch {
+  }
+
+  // Disque local (dev sans R2).
+  const data = await readLocalPhoto(key);
+  if (!data) {
     return NextResponse.json({ message: "Photo introuvable." }, { status: 404 });
   }
+
+  const contentType = MIME_TYPES[extname(key).toLowerCase()] ?? "image/jpeg";
+  return new Response(new Uint8Array(data), {
+    headers: {
+      "Content-Type": contentType,
+      // Privé : jamais mis en cache partagé entre utilisateurs.
+      "Cache-Control": "private, max-age=3600",
+    },
+  });
 }

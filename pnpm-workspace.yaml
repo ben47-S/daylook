@@ -5,3 +5,10 @@ allowBuilds:
   prisma: true
   sharp: true
   unrs-resolver: false
+
+# Sécurité : sharp 0.32 (via @imgly/background-removal-node) a 4 CVE
+# libvips/libheif/librsvg atteignables lors du détourage des photos.
+# Forcé en 0.35.5 (dernière version corrigée) — à valider par un test
+# du détourage après `pnpm install`.
+overrides:
+  sharp: ^0.35.5
