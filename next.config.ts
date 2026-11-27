@@ -37,6 +37,17 @@ const nextConfig: NextConfig = {
     "@imgly/background-removal-node",
     "onnxruntime-node",
   ],
+  // Fichiers que le tracer NFT ne devine pas seul pour le détourage :
+  // onnxruntime charge ses .so via dlopen (invisible pour l'analyse
+  // statique) et zod@3 (dep d'imgly) n'est tracé que pour son entrée ESM.
+  // Sans eux, le standalone lève « libonnxruntime.so.1.17.3: cannot open
+  // shared object file » à l'upload d'une photo.
+  outputFileTracingIncludes: {
+    "/api/pieces/\\[id\\]/photo": [
+      "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/*",
+      "./node_modules/.pnpm/zod@3*/node_modules/zod/lib/**/*",
+    ],
+  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
