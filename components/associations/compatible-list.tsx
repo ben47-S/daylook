@@ -8,15 +8,22 @@ import type { Piece } from "@/lib/prisma";
 // association, chaque décoche la retire. Appels à /api/associations.
 
 type Props = {
-  /** La pièce de la fiche. */
-  piece: Piece;
+  /** La pièce de la fiche (ou du bottomsheet d'associations). */
+  piece: { id: string; type: "TOP" | "BOTTOM" };
   /** Pièces de l'autre type, actives. */
   options: Piece[];
   /** Ids des options déjà associées à la pièce de la fiche. */
   linkedIds: string[];
+  /** Remonte un changement de coche au parent (bottomsheet). */
+  onToggle?: (optionId: string, next: boolean) => void;
 };
 
-export function CompatibleList({ piece, options, linkedIds }: Props) {
+export function CompatibleList({
+  piece,
+  options,
+  linkedIds,
+  onToggle,
+}: Props) {
   const router = useRouter();
   const [checked, setChecked] = useState<Set<string>>(new Set(linkedIds));
   const [pending, setPending] = useState(false);
@@ -45,6 +52,8 @@ export function CompatibleList({ piece, options, linkedIds }: Props) {
         message?: string;
       };
       setMessage(data.message ?? "Erreur lors de la mise à jour.");
+    } else {
+      onToggle?.(optionId, next); // le parent répercute la coche
     }
 
     setPending(false);

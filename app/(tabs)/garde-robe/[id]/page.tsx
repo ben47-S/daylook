@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/dal";
 import { PieceForm } from "@/components/pieces/piece-form";
 import { WashButton } from "@/components/pieces/wash-button";
-import { CompatibleList } from "@/components/associations/compatible-list";
+import { AssociationsSheet } from "@/components/associations/associations-sheet";
 import { TenueAssemblee } from "@/components/outfits/tenue-assemblee";
 
 export const metadata: Metadata = {
@@ -14,8 +14,8 @@ export const metadata: Metadata = {
 };
 
 // Fiche d'une pièce : état (compteur de ports, seuil, bouton « lavé »),
-// formulaire, pièces compatibles (cases à cocher qui gèrent les
-// associations) et combinaisons en vue assemblée.
+// formulaire, pièces compatibles (bottomsheet d'associations) et
+// combinaisons en vue assemblée.
 // Session + BDD chargées derrière un <Suspense> avec connection() —
 // même motif que l'accueil et la garde-robe.
 
@@ -50,27 +50,14 @@ async function EditionPiece({
   });
   if (!piece) notFound();
 
-  const oppositeType = piece.type === "TOP" ? "BOTTOM" : "TOP";
-  const [compatibles, associations] = await Promise.all([
-    // Pièces de l'autre type pour les cases à cocher
-    prisma.piece.findMany({
-      where: { userId: user.id, archived: false, type: oppositeType },
-      orderBy: { createdAt: "desc" },
-    }),
-    // Associations de cette pièce, avec les deux pièces pour la vue assemblée
-    prisma.association.findMany({
-      where: {
-        userId: user.id,
-        OR: [{ topId: piece.id }, { bottomId: piece.id }],
-      },
-      include: { top: true, bottom: true },
-      orderBy: { createdAt: "asc" },
-    }),
-  ]);
-
-  const linkedIds = associations.map((association) =>
-    association.topId === piece.id ? association.bottomId : association.topId,
-  );
+  const associations = await prisma.association.findMany({
+    where: {
+      userId: user.id,
+      OR: [{ topId: piece.id }, { bottomId: piece.id }],
+    },
+    include: { top: true, bottom: true },
+    orderBy: { createdAt: "asc" },
+  });
 
   // Dernier port réel (pour afficher « dernier port » sous le compteur).
   const lastWorn = await prisma.wearLog.findFirst({
@@ -119,10 +106,10 @@ async function EditionPiece({
             Coche une pièce pour créer la combinaison, décoche pour la retirer.
           </p>
         </div>
-        <CompatibleList
+        <AssociationsSheet
           piece={piece}
-          options={compatibles}
-          linkedIds={linkedIds}
+          variant="block"
+          count={associations.length}
         />
       </section>
 

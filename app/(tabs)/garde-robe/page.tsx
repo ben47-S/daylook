@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/dal";
+import { AssociationsSheet } from "@/components/associations/associations-sheet";
 
 export const metadata: Metadata = {
   title: "Garde-robe",
@@ -95,7 +96,7 @@ function Section({
       </h2>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {pieces.map((piece) => (
-          <li key={piece.id}>
+          <li key={piece.id} className="relative">
             <Link
               href={`/garde-robe/${piece.id}`}
               className="block overflow-hidden rounded-xl border border-zinc-200 bg-white transition hover:border-zinc-400"
@@ -136,6 +137,11 @@ function Section({
                 />
               </div>
             </Link>
+            {/* Bouton associations : hors du <Link> pour que le clic
+                ouvre le bottomsheet au lieu de naviguer. */}
+            <div className="absolute right-2 top-2">
+              <AssociationsSheet piece={piece} variant="icon" />
+            </div>
           </li>
         ))}
       </ul>
