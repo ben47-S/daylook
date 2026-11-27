@@ -40,7 +40,7 @@ Trois onglets :
 
 1. **Accueil** : tenue du lendemain (ou du jour) en vue assemblée, son statut, la carte « repassée ? » avec ses boutons, alertes de lavage.
 2. **Garde-robe** : grille des hauts et des pantalons (photo, titre, couleur, compteur de ports), bouton « + » pour ajouter une pièce.
-3. **Planning** : la semaine, un jour par ligne, statut de chaque tenue. Une icône en haut ouvre l'**historique** dans un bottomsheet.
+3. **Planning** : la semaine calendaire (lundi → dimanche), un jour par ligne, avec navigation entre semaines. Une icône en haut ouvre l'**historique** dans un bottomsheet.
 
 Écrans ouverts par un clic depuis ces onglets :
 
@@ -56,6 +56,7 @@ Trois onglets :
 - Types : haut ou pantalon.
 - Champs : photo, titre, couleur, description de différence.
 - Compteur de ports depuis le dernier lavage, remis à zéro par le bouton « lavé ».
+- Comptage hebdomadaire des ports réels, affiché à côté : une pièce peut être portée une fois cette semaine et trois fois les suivantes avant d'atteindre son seuil de lavage. Les deux comptages sont indépendants.
 - Seuil optionnel de ports avant lavage, propre à chaque pièce.
 - Une pièce supprimée est archivée pour ne pas casser l'historique.
 
@@ -65,11 +66,12 @@ Trois onglets :
 - Depuis la fiche d'une pièce, on coche toutes les pièces compatibles : chaque coche crée une association.
 
 ### Planning et propositions
-- Planning par date sur la semaine à venir, une tenue par jour.
+- Planning par date sur une semaine calendaire lundi → dimanche (navigation ‹ ›), une tenue par jour.
 - Pour un jour donné, l'app propose des tenues parmi les associations existantes uniquement.
 - Filtres : on écarte les pièces dont le seuil de ports (ports réels + ports déjà prévus dans la semaine) serait dépassé.
-- Classement : pièces portées le moins souvent ou depuis le plus longtemps en premier ; on évite de reproposer la même pièce deux jours de suite.
-- Une pièce peut être portée deux fois dans la même semaine : être déjà programmée un autre jour n'est pas un motif d'exclusion.
+- Classement : pièces déjà portées le moins souvent **dans la semaine**, puis depuis le plus longtemps en premier ; on évite de reproposer la même pièce deux jours de suite.
+- Alerte orange à 2 ports dans la semaine, rouge à 3 ou plus ; le seuil de lavage reste, lui, calculé sur le cumul depuis le dernier lavage.
+- Une pièce peut être portée deux fois dans la même semaine : être déjà programmée un autre jour n'est pas un motif d'exclusion (seule l'alerte change).
 - Statuts d'une tenue planifiée : prévue, confirmée (oui), annulée (non, avec motif).
 
 ### Historique

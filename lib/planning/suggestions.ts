@@ -1,7 +1,7 @@
 import { addDays } from "./dates";
 import {
   countPlannedElsewhere,
-  repetitionWarnings,
+  weeklyWarnings,
   washWarnings,
   type PieceWarning,
   type PlannedPiecesByDay,
@@ -38,9 +38,9 @@ type Input = {
   associations: SuggestionAssociation[];
   /** Jour proposé (clé "YYYY-MM-DD"). */
   dateKey: string;
-  /** Jours de la semaine affichée (pour le compte de ports prévus). */
+  /** Jours lundi → dimanche de la semaine affichée. */
   weekKeys: string[];
-  /** Pièces déjà programmées par jour (semaine + jours adjacents). */
+  /** Pièces déjà programmées par jour, tenues annulées exclues. */
   planned: PlannedPiecesByDay;
 };
 
@@ -51,10 +51,10 @@ const ADJACENT_PENALTY = 100;
  * Produit les propositions pour `dateKey`, dans l'ordre de pertinence :
  * 1. filtre : une association dont une pièce dépasserait son seuil de
  *    lavage (ports réels + ports déjà prévus dans la semaine) est écartée ;
- * 2. classement : pièces portées le moins souvent, puis depuis le plus
- *    longtemps en premier ; pénalité si une pièce est déjà programmée un
- *    jour adjacent (« on évite de reproposer la même pièce deux jours de
- *    suite », sans l'exure pour autant) ;
+ * 2. classement : pièces déjà portées le moins souvent DANS LA SEMAINE,
+ *    puis depuis le plus longtemps en premier ; pénalité si une pièce est
+ *    déjà programmée un jour adjacent (« on évite de reproposer la même
+ *    pièce deux jours de suite », sans l'exclure pour autant) ;
  * 3. alertes colorées (orange/rouge) calculées pour chaque proposition.
  */
 export function buildSuggestions({
@@ -65,7 +65,7 @@ export function buildSuggestions({
 }: Input): Suggestion[] {
   const scored: Array<{
     suggestion: Suggestion;
-    /** Priorité lexicographique : [adjacence, fréquence, ancienneté]. */
+    /** Priorité lexicographique : [adjacence, ports/semaine, ancienneté]. */
     rank: [number, number, number];
   }> = [];
 
@@ -99,17 +99,22 @@ export function buildSuggestions({
       }
     }
 
-    // Classement : moins porté d'abord, puis plus ancien port d'abord
-    // (timestamp le plus petit = le plus ancien ; jamais portée = 0).
-    const frequency = association.top.wearsSinceWash +
-      association.bottom.wearsSinceWash;
+    // Classement hebdomadaire : moins porté cette semaine d'abord, puis
+    // plus ancien port réel d'abord (jamais portée = 0). Le compteur cumulé
+    // `wearsSinceWash` reste, lui, réservé au seuil de lavage.
+    const weeklyFrequency = pieces.reduce(
+      (sum, piece) =>
+        sum +
+        countPlannedElsewhere(planned, weekKeys, piece.id, dateKey),
+      0,
+    );
     const oldest = Math.min(
       association.top.lastWornAt?.getTime() ?? 0,
       association.bottom.lastWornAt?.getTime() ?? 0,
     );
 
     const warnings = pieces.flatMap((piece) => [
-      ...repetitionWarnings(piece, dateKey, planned),
+      ...weeklyWarnings(piece, dateKey, weekKeys, planned),
       ...washWarnings(
         piece,
         countPlannedElsewhere(planned, weekKeys, piece.id, dateKey),
@@ -118,7 +123,7 @@ export function buildSuggestions({
 
     scored.push({
       suggestion: { association, warnings },
-      rank: [adjacency, frequency, oldest],
+      rank: [adjacency, weeklyFrequency, oldest],
     });
   }
 

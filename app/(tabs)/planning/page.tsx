@@ -7,13 +7,15 @@ import {
   addDays,
   dateFromKey,
   dateKeyInZone,
-  dayKeys,
   dayLabel,
+  isValidDateKey,
+  weekKeysFor,
+  weekStartKey,
 } from "@/lib/planning/dates";
 import {
   countPlannedElsewhere,
-  repetitionWarnings,
   washWarnings,
+  weeklyWarnings,
   type PlannedPiecesByDay,
 } from "@/lib/planning/warnings";
 import { WeekView, type DayPlan } from "@/components/planning/week-view";
@@ -23,19 +25,28 @@ export const metadata: Metadata = {
   title: "Planning",
 };
 
-// Onglet 3 — la semaine à venir, un jour par ligne, statut de chaque tenue
-// et alertes colorées. Une icône dans l'en-tête ouvre l'historique des
-// ports en bottomsheet (§3). Session + BDD chargées derrière un
-// <Suspense> avec connection() (règle cacheComponents), comme sur
-// l'accueil et la garde-robe.
+// Onglet 3 — une semaine calendaire lundi → dimanche par page, un jour par
+// ligne, statut de chaque tenue et alertes colorées. Navigation ‹ › vers les
+// autres semaines via `?week=YYYY-MM-DD` (clé ramenée au lundi). Une icône
+// dans l'en-tête ouvre l'historique des ports en bottomsheet (§3).
+// Session + BDD + searchParams chargés derrière un <Suspense> avec
+// connection() (règle cacheComponents), comme sur l'accueil et la garde-robe.
 
-export default function PlanningPage() {
+type PlanningSearchParams = Promise<{ week?: string }>;
+
+export default function PlanningPage({
+  searchParams,
+}: {
+  searchParams: PlanningSearchParams;
+}) {
   return (
     <main className="flex flex-1 flex-col p-4">
       <header className="mb-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold">Planning</h1>
-          <p className="truncate text-sm text-zinc-500">Semaine à venir</p>
+          <p className="truncate text-sm text-zinc-500">
+            Semaine lundi → dimanche
+          </p>
         </div>
         <HistorySheet />
       </header>
@@ -43,15 +54,20 @@ export default function PlanningPage() {
       <Suspense
         fallback={<p className="text-sm text-zinc-500">Chargement du planning…</p>}
       >
-        <Semaine />
+        <Semaine searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-async function Semaine() {
+async function Semaine({
+  searchParams,
+}: {
+  searchParams: PlanningSearchParams;
+}) {
   await connection();
 
+  const { week } = await searchParams;
   const user = await requireUser();
   const account = await prisma.user.findUnique({
     where: { id: user.id },
@@ -61,10 +77,13 @@ async function Semaine() {
     new Date(),
     account?.timezone ?? "Africa/Abidjan",
   );
-  const weekKeys = dayKeys(todayKey, 7);
+  const weekKey = weekStartKey(
+    week && isValidDateKey(week) ? week : todayKey,
+  );
+  const weekKeys = weekKeysFor(weekKey);
 
-  // Plutôt que la semaine seule : veille et lendemain compris, pour que
-  // les alertes de répétition voient les jours adjacents.
+  // Veille et lendemain inclus dans la requête pour la pénalité d'adjacence
+  // du moteur de propositions (appelé côté client par WeekView).
   const outfits = await prisma.plannedOutfit.findMany({
     where: {
       userId: user.id,
@@ -76,13 +95,19 @@ async function Semaine() {
     include: { association: { include: { top: true, bottom: true } } },
   });
 
-  const plannedByDay: PlannedPiecesByDay = {};
+  const countedByDay: PlannedPiecesByDay = {};
   const byDayKey = new Map<string, (typeof outfits)[number]>();
   for (const outfit of outfits) {
     const key = outfit.date.toISOString().slice(0, 10);
-    plannedByDay[key] ??= [];
-    plannedByDay[key].push(outfit.association.topId, outfit.association.bottomId);
     byDayKey.set(key, outfit);
+    // Une tenue annulée reste affichée (avec son badge) mais ne compte pas
+    // comme un port, ni dans la semaine, ni pour le seuil de lavage.
+    if (outfit.status === "CANCELLED") continue;
+    countedByDay[key] ??= [];
+    countedByDay[key].push(
+      outfit.association.topId,
+      outfit.association.bottomId,
+    );
   }
 
   const days: DayPlan[] = weekKeys.map((dateKey) => {
@@ -100,15 +125,15 @@ async function Semaine() {
 
     const { top, bottom } = outfit.association;
     const warnings = [
-      ...repetitionWarnings(top, dateKey, plannedByDay),
-      ...repetitionWarnings(bottom, dateKey, plannedByDay),
+      ...weeklyWarnings(top, dateKey, weekKeys, countedByDay),
+      ...weeklyWarnings(bottom, dateKey, weekKeys, countedByDay),
       ...washWarnings(
         top,
-        countPlannedElsewhere(plannedByDay, weekKeys, top.id, dateKey),
+        countPlannedElsewhere(countedByDay, weekKeys, top.id, dateKey),
       ),
       ...washWarnings(
         bottom,
-        countPlannedElsewhere(plannedByDay, weekKeys, bottom.id, dateKey),
+        countPlannedElsewhere(countedByDay, weekKeys, bottom.id, dateKey),
       ),
     ];
 
@@ -136,5 +161,5 @@ async function Semaine() {
     };
   });
 
-  return <WeekView days={days} />;
+  return <WeekView days={days} weekKey={weekKey} />;
 }

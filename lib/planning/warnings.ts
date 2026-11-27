@@ -1,11 +1,15 @@
-import { addDays } from "./dates";
-
 // Alertes colorées à titre informatif sur les propositions ET sur les jours
 // déjà planifiés (demande utilisateur) :
-//   - orange : la pièce serait portée 2 jours de suite, ou c'est son dernier
-//     port avant le seuil de lavage ;
-//   - rouge  : la pièce serait portée 3 jours (ou plus) de suite, ou son
+//   - orange : la pièce serait portée 2 fois dans la semaine, ou c'est son
+//     dernier port avant le seuil de lavage ;
+//   - rouge  : la pièce serait portée 3 fois (ou plus) dans la semaine, ou son
 //     seuil de lavage serait dépassé.
+// Deux comptages distincts et complémentaires :
+//   - hebdomadaire : nombre de jours où la pièce est programmée dans la
+//     semaine lundi → dimanche affichée ;
+//   - cumulé : `wearsSinceWash`, nombre de ports réels depuis le dernier
+//     lavage (une pièce peut être portée une fois cette semaine puis trois
+//     fois les suivantes avant d'atteindre son seuil).
 // Toutes les fonctions sont pures : le moteur de propositions (route API) et
 // l'onglet Planning (page serveur) partagent exactement les mêmes règles.
 
@@ -26,39 +30,29 @@ function isPlannedOn(planned: PlannedPiecesByDay, key: string, pieceId: string) 
 }
 
 /**
- * Alerte de répétition : calcule le nombre de jours consécutifs (avant et
- * après `dateKey`) où cette pièce est programmée.
+ * Alerte de répétition hebdomadaire : nombre de fois où la pièce serait
+ * portée dans la semaine, le jour `dateKey` inclus.
  */
-export function repetitionWarnings(
+export function weeklyWarnings(
   piece: WarnablePiece,
   dateKey: string,
+  weekKeys: string[],
   planned: PlannedPiecesByDay,
 ): PieceWarning[] {
-  let before = 0;
-  for (let offset = 1; offset <= 2; offset++) {
-    if (isPlannedOn(planned, addDays(dateKey, -offset), piece.id)) before++;
-    else break;
-  }
-  let after = 0;
-  for (let offset = 1; offset <= 2; offset++) {
-    if (isPlannedOn(planned, addDays(dateKey, offset), piece.id)) after++;
-    else break;
-  }
-
-  const run = 1 + before + after;
-  if (run >= 3) {
+  const count = countPlannedElsewhere(planned, weekKeys, piece.id, dateKey) + 1;
+  if (count >= 3) {
     return [
       {
         level: "red",
-        text: `${piece.title} : ${run} jours de suite`,
+        text: `${piece.title} : ${count} fois cette semaine`,
       },
     ];
   }
-  if (run === 2) {
+  if (count === 2) {
     return [
       {
         level: "orange",
-        text: `${piece.title} : 2 jours de suite`,
+        text: `${piece.title} : 2 fois cette semaine`,
       },
     ];
   }
@@ -66,8 +60,9 @@ export function repetitionWarnings(
 }
 
 /**
- * Alerte de lavage : `otherPlannedCount` = ports déjà prévus pour cette
- * pièce dans la semaine, hors `dateKey` (le port du jour est ajouté).
+ * Alerte de lavage (comptage cumulé depuis le lavage) :
+ * `otherPlannedCount` = ports déjà prévus pour cette pièce dans la semaine,
+ * hors `dateKey` (le port du jour est ajouté).
  */
 export function washWarnings(
   piece: WarnablePiece,

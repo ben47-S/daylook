@@ -52,6 +52,17 @@ export function dayKeys(startKey: string, count = 7): string[] {
   return Array.from({ length: count }, (_, index) => addDays(startKey, index));
 }
 
+/** Lundi de la semaine (lundi → dimanche) contenant `key`. */
+export function weekStartKey(key: string): string {
+  const day = dateFromKey(key).getUTCDay(); // 0 = dimanche
+  return addDays(key, day === 0 ? -6 : 1 - day);
+}
+
+/** Les 7 clés lundi → dimanche de la semaine contenant `key`. */
+export function weekKeysFor(key: string): string[] {
+  return dayKeys(weekStartKey(key), 7);
+}
+
 /**
  * Libellé d'affichage : « Aujourd'hui », « Demain », sinon « lun. 25 nov. ».
  * Le format court fr-FR est calé sur UTC car la clé est un jour calendaire.

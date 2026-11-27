@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/dal";
+import { dateKeyInZone, weekKeysFor } from "@/lib/planning/dates";
+import { weeklyWearCounts } from "@/lib/planning/wears";
 import { AssociationsSheet } from "@/components/associations/associations-sheet";
 
 export const metadata: Metadata = {
@@ -12,8 +14,9 @@ export const metadata: Metadata = {
 };
 
 // Onglet 2 — grille des hauts et des pantalons (photo, titre, couleur,
-// compteur de ports) + bouton « + ». Le contenu connecté stream derrière
-// un <Suspense> (règle cacheComponents), comme sur l'accueil.
+// compteur depuis le lavage + ports cette semaine) + bouton « + ». Le
+// contenu connecté stream derrière un <Suspense> (règle cacheComponents),
+// comme sur l'accueil.
 
 export default function GardeRobePage() {
   return (
@@ -41,10 +44,22 @@ async function GrillePieces() {
   await connection();
 
   const user = await requireUser();
-  const pieces = await prisma.piece.findMany({
-    where: { userId: user.id, archived: false },
-    orderBy: { createdAt: "desc" },
+  const account = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { timezone: true },
   });
+  const todayKey = dateKeyInZone(
+    new Date(),
+    account?.timezone ?? "Africa/Abidjan",
+  );
+
+  const [pieces, weeklyCounts] = await Promise.all([
+    prisma.piece.findMany({
+      where: { userId: user.id, archived: false },
+      orderBy: { createdAt: "desc" },
+    }),
+    weeklyWearCounts(user.id, weekKeysFor(todayKey)),
+  ]);
 
   if (pieces.length === 0) {
     return (
@@ -65,11 +80,19 @@ async function GrillePieces() {
   // Les hauts en haut, les pantalons en bas, séparés par un trait.
   return (
     <div className="flex flex-col gap-6">
-      {tops.length > 0 && <Section titre="Hauts" pieces={tops} />}
+      {tops.length > 0 && (
+        <Section titre="Hauts" pieces={tops} weeklyCounts={weeklyCounts} />
+      )}
       {tops.length > 0 && bottoms.length > 0 && (
         <hr className="border-zinc-200" />
       )}
-      {bottoms.length > 0 && <Section titre="Pantalons" pieces={bottoms} />}
+      {bottoms.length > 0 && (
+        <Section
+          titre="Pantalons"
+          pieces={bottoms}
+          weeklyCounts={weeklyCounts}
+        />
+      )}
     </div>
   );
 }
@@ -77,6 +100,7 @@ async function GrillePieces() {
 function Section({
   titre,
   pieces,
+  weeklyCounts,
 }: {
   titre: string;
   pieces: Array<{
@@ -88,6 +112,7 @@ function Section({
     wearsSinceWash: number;
     washThreshold: number | null;
   }>;
+  weeklyCounts: Map<string, number>;
 }) {
   return (
     <section className="flex flex-col gap-3">
@@ -134,6 +159,7 @@ function Section({
                 <Compteurs
                   wears={piece.wearsSinceWash}
                   threshold={piece.washThreshold}
+                  weekly={weeklyCounts.get(piece.id) ?? 0}
                 />
               </div>
             </Link>
@@ -152,18 +178,24 @@ function Section({
 function Compteurs({
   wears,
   threshold,
+  weekly,
 }: {
   wears: number;
   threshold: number | null;
+  weekly: number;
 }) {
   const label = `${wears} port${wears > 1 ? "s" : ""}`;
+  const weeklyLabel = `${weekly} port${weekly > 1 ? "s" : ""} cette semaine`;
   const overThreshold = threshold !== null && wears >= threshold;
 
   return (
-    <p
-      className={`text-xs ${overThreshold ? "font-medium text-red-600" : "text-zinc-400"}`}
-    >
-      {threshold !== null ? `${label} / ${threshold}` : label}
-    </p>
+    <div className="flex flex-col">
+      <p
+        className={`text-xs ${overThreshold ? "font-medium text-red-600" : "text-zinc-400"}`}
+      >
+        {threshold !== null ? `${label} / ${threshold}` : label}
+      </p>
+      <p className="text-xs text-zinc-400">{weeklyLabel}</p>
+    </div>
   );
 }

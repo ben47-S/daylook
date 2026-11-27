@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/dal";
+import { dateKeyInZone, weekKeysFor } from "@/lib/planning/dates";
+import { weeklyWearCounts } from "@/lib/planning/wears";
 import { PieceForm } from "@/components/pieces/piece-form";
 import { WashButton } from "@/components/pieces/wash-button";
 import { AssociationsSheet } from "@/components/associations/associations-sheet";
@@ -45,6 +47,15 @@ async function EditionPiece({
   const { id } = await params;
   const user = await requireUser();
 
+  const account = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { timezone: true },
+  });
+  const todayKey = dateKeyInZone(
+    new Date(),
+    account?.timezone ?? "Africa/Abidjan",
+  );
+
   const piece = await prisma.piece.findFirst({
     where: { id, userId: user.id, archived: false },
   });
@@ -59,12 +70,20 @@ async function EditionPiece({
     orderBy: { createdAt: "asc" },
   });
 
-  // Dernier port réel (pour afficher « dernier port » sous le compteur).
-  const lastWorn = await prisma.wearLog.findFirst({
-    where: { userId: user.id, OR: [{ topId: piece.id }, { bottomId: piece.id }] },
-    orderBy: { date: "desc" },
-    select: { date: true },
-  });
+  // Dernier port réel + compte de la semaine en cours (comptage indépendant
+  // du cumul depuis le lavage affiché juste au-dessus).
+  const [lastWorn, weeklyCounts] = await Promise.all([
+    prisma.wearLog.findFirst({
+      where: {
+        userId: user.id,
+        OR: [{ topId: piece.id }, { bottomId: piece.id }],
+      },
+      orderBy: { date: "desc" },
+      select: { date: true },
+    }),
+    weeklyWearCounts(user.id, weekKeysFor(todayKey)),
+  ]);
+  const weeklyWears = weeklyCounts.get(piece.id) ?? 0;
 
   return (
     <div className="flex flex-col gap-8">
@@ -83,6 +102,9 @@ async function EditionPiece({
                   / {piece.washThreshold}
                 </span>
               )}
+            </p>
+            <p className="text-sm font-medium text-zinc-700">
+              {weeklyWears} port{weeklyWears > 1 ? "s" : ""} cette semaine
             </p>
             <p className="text-xs text-zinc-500">
               {piece.lastWashedAt

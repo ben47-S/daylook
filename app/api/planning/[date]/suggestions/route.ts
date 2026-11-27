@@ -4,9 +4,8 @@ import { getSessionUserId } from "@/lib/auth/session";
 import {
   addDays,
   dateFromKey,
-  dateKeyInZone,
-  dayKeys,
   isValidDateKey,
+  weekKeysFor,
 } from "@/lib/planning/dates";
 import { buildSuggestions } from "@/lib/planning/suggestions";
 import { type PlannedPiecesByDay } from "@/lib/planning/warnings";
@@ -34,25 +33,15 @@ export async function GET(_request: Request, { params }: Params) {
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { timezone: true },
-  });
-  const todayKey = dateKeyInZone(
-    new Date(),
-    user?.timezone ?? "Africa/Abidjan",
-  );
-  // Semaine affichée = 7 jours à partir d'aujourd'hui (même fenêtre que
-  // l'onglet Planning) : sert au compte des ports déjà prévus dans la semaine.
-  const weekKeys = dayKeys(todayKey, 7);
+  // Semaine calendaire lundi → dimanche contenant le jour proposé : c'est
+  // elle qui sert au compte des ports prévus, y compris quand on navigue
+  // vers une autre semaine depuis l'onglet Planning.
+  const weekKeys = weekKeysFor(date);
 
-  // Fenêtre d'adjacence : la semaine + veille/lendemain du jour proposé
-  // (bornes élargies si le jour tombe hors semaine).
-  const rangeStart = date < weekKeys[0] ? date : weekKeys[0];
-  const rangeEnd =
-    date > weekKeys[weekKeys.length - 1] ? date : weekKeys[weekKeys.length - 1];
-  const startAdjacent = addDays(rangeStart, -1);
-  const endAdjacent = addDays(rangeEnd, 1);
+  // Fenêtre d'adjacence : la semaine + veille/lendemain du jour proposé,
+  // pour l'alerte « deux jours de suite » du classement.
+  const startAdjacent = addDays(weekKeys[0], -1);
+  const endAdjacent = addDays(weekKeys[6], 1);
 
   const [associations, outfits, wearLogs] = await Promise.all([
     prisma.association.findMany({
@@ -66,6 +55,7 @@ export async function GET(_request: Request, { params }: Params) {
     prisma.plannedOutfit.findMany({
       where: {
         userId,
+        status: { not: "CANCELLED" }, // une tenue annulée ne compte pas comme portée
         date: { gte: dateFromKey(startAdjacent), lte: dateFromKey(endAdjacent) },
       },
       include: { association: { select: { topId: true, bottomId: true } } },

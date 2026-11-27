@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlanStatus } from "@/lib/prisma";
+import { addDays } from "@/lib/planning/dates";
 import type { PieceWarning } from "@/lib/planning/warnings";
 import { TenueAssemblee } from "@/components/outfits/tenue-assemblee";
 import { StatusBadge } from "@/components/planning/status-badge";
@@ -43,7 +45,14 @@ type SuggestionItem = {
 const BUTTON =
   "rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60";
 
-export function WeekView({ days }: { days: DayPlan[] }) {
+export function WeekView({
+  days,
+  weekKey,
+}: {
+  days: DayPlan[];
+  /** Lundi de la semaine affichée (clé "YYYY-MM-DD"). */
+  weekKey: string;
+}) {
   const router = useRouter();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
@@ -112,6 +121,27 @@ export function WeekView({ days }: { days: DayPlan[] }) {
     // Borne la ligne-jour sur très grand écran : jour | tenue | actions
     // reste lisible au lieu de s'étaler sur 72rem.
     <div className="mx-auto flex w-full max-w-none flex-col gap-3 lg:max-w-4xl">
+      {/* Navigation semaine calendaire : ‹ › décalent de 7 jours. */}
+      <div className="flex items-center justify-between gap-2">
+        <Link
+          href={`/planning?week=${addDays(weekKey, -7)}`}
+          aria-label="Semaine précédente"
+          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-lg leading-none text-zinc-700 transition hover:bg-zinc-100"
+        >
+          ‹
+        </Link>
+        <p className="truncate text-sm font-medium text-zinc-600">
+          {formatWeek(weekKey)}
+        </p>
+        <Link
+          href={`/planning?week=${addDays(weekKey, 7)}`}
+          aria-label="Semaine suivante"
+          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-lg leading-none text-zinc-700 transition hover:bg-zinc-100"
+        >
+          ›
+        </Link>
+      </div>
+
       <ul className="flex flex-col gap-3">
         {days.map((day) => {
           const open = openKey === day.dateKey;
@@ -260,4 +290,16 @@ function Warnings({ warnings }: { warnings: PieceWarning[] }) {
       ))}
     </ul>
   );
+}
+
+/** « du lun. 23 nov. au dim. 29 nov. » (clés UTC, affichage fr-FR). */
+function formatWeek(weekKey: string): string {
+  const format = (key: string) =>
+    new Intl.DateTimeFormat("fr-FR", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC",
+    }).format(new Date(`${key}T00:00:00.000Z`));
+  return `du ${format(weekKey)} au ${format(addDays(weekKey, 6))}`;
 }

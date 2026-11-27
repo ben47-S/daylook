@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { dateFromKey } from "@/lib/planning/dates";
 
 // Enregistrement / annulation d'un port lié à une tenue planifiée (§5,
 // §10). Invariant : un WearLog existe ⟺ la tenue du jour est confirmée.
@@ -11,6 +12,35 @@ type PlanRef = {
   id: string;
   association: { topId: string; bottomId: string };
 };
+
+/**
+ * Ports réels par pièce sur une semaine calendaire (WearLog confirmés).
+ * Sert à afficher le comptage hebdomadaire à côté du compteur cumulé
+ * `wearsSinceWash` — les deux comptages sont indépendants.
+ */
+export async function weeklyWearCounts(
+  userId: string,
+  weekKeys: string[],
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (weekKeys.length === 0) return counts;
+
+  const logs = await prisma.wearLog.findMany({
+    where: {
+      userId,
+      date: {
+        gte: dateFromKey(weekKeys[0]),
+        lte: dateFromKey(weekKeys[weekKeys.length - 1]),
+      },
+    },
+    select: { topId: true, bottomId: true },
+  });
+  for (const log of logs) {
+    counts.set(log.topId, (counts.get(log.topId) ?? 0) + 1);
+    counts.set(log.bottomId, (counts.get(log.bottomId) ?? 0) + 1);
+  }
+  return counts;
+}
 
 /**
  * Enregistre le port d'une tenue confirmée : WearLog du jour + compteur
