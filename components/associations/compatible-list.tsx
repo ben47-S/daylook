@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import type { Piece } from "@/lib/prisma";
 
 // Cases à cocher « Pièces compatibles » (§4) : chaque coche crée une
@@ -95,6 +96,7 @@ export function CompatibleList({
                 onChange={(event) => handleChange(event, option.id)}
                 className="h-4 w-4 shrink-0 accent-zinc-900"
               />
+              <Vignette piece={option} />
               <span className="min-w-0 flex-1 truncate text-sm font-medium">
                 {option.title}
               </span>
@@ -112,5 +114,42 @@ export function CompatibleList({
         </p>
       )}
     </div>
+  );
+}
+
+// Vignette carrée de la pièce, à gauche du titre (même source que la
+// garde-robe : /api/photos/:id, qui renvoie la photo locale ou une URL
+// signée R2). Sans photo : un cadre neutre garde la ligne alignée.
+function Vignette({ piece }: { piece: Piece }) {
+  if (!piece.photoPath) {
+    return (
+      <div
+        aria-hidden="true"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          className="h-4 w-4 text-zinc-300"
+        >
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="m3 15 4.5-4.5 3 3L15 9l6 6" />
+          <circle cx="8.5" cy="9.5" r="1.25" />
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={`/api/photos/${piece.id}`}
+      alt={piece.title}
+      unoptimized
+      width={36}
+      height={36}
+      className="h-9 w-9 shrink-0 rounded-md border border-zinc-200 object-cover"
+    />
   );
 }

@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -28,12 +34,53 @@ export function PieceForm({ piece }: Props) {
   const [type, setType] = useState<"TOP" | "BOTTOM">(piece?.type ?? "TOP");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Marqueur posé juste après un enregistrement réussi : le formulaire doit
+  // repartir de zéro à la prochaine visite (voir useLayoutEffect plus bas).
+  const shouldReset = useRef(false);
+  // Miroir de photoPreview pour pouvoir révoquer l'URL dans un cleanup sans
+  // la figer dans la closure.
+  const photoPreviewRef = useRef<string | null>(null);
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (photoPreview) URL.revokeObjectURL(photoPreview);
-    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+    const next = file ? URL.createObjectURL(file) : null;
+    photoPreviewRef.current = next;
+    setPhotoPreview(next);
   }
+
+  // cacheComponents : Next ne démonte plus les pages à la navigation, il les
+  // masque avec React <Activity> (DOM conservé). Sans remise à zéro, la
+  // visite suivante du formulaire retrouve les champs de la pièce
+  // précédente et le bouton bloqué sur « Enregistrement… ».
+  // On réinitialise au moment précis où la page est masquée : ni avant (ça
+  // clignoterait), ni jamais (l'état stagnerait). Les brouillons non
+  // envoyés restent conservés — seul un enregistrement réussi vide le
+  // formulaire, comme recommandé par la doc Next (preserving-ui-state).
+  useLayoutEffect(() => {
+    const form = formRef.current;
+    return () => {
+      // Messages d'erreur/succès périmés : toujours à jeter.
+      setState(undefined);
+      setPending(false);
+      if (!shouldReset.current) return;
+      shouldReset.current = false;
+
+      // Mode création : on repart d'un formulaire vierge.
+      // Mode modification : on garde les champs, ils valent ce qui vient
+      // d'être enregistré.
+      if (!piece) {
+        setType("TOP");
+        form?.reset();
+      }
+      if (photoPreviewRef.current) {
+        URL.revokeObjectURL(photoPreviewRef.current);
+        photoPreviewRef.current = null;
+        setPhotoPreview(null);
+      }
+    };
+  }, [piece]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -102,6 +149,9 @@ export function PieceForm({ piece }: Props) {
       }
     }
 
+    // Enregistré : on vide le formulaire à la mise en cache de la page
+    // (cf. useLayoutEffect), puis on retourne à la garde-robe.
+    shouldReset.current = true;
     router.push("/garde-robe");
     router.refresh();
   }
@@ -133,7 +183,11 @@ export function PieceForm({ piece }: Props) {
       : null;
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4 lg:max-w-2xl">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      className="flex w-full flex-col gap-4 lg:max-w-2xl"
+    >
       {/* Photo */}
       <div className="flex flex-wrap items-center gap-4">
         <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
